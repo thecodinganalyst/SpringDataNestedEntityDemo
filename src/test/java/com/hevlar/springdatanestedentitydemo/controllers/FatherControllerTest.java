@@ -1,5 +1,6 @@
 package com.hevlar.springdatanestedentitydemo.controllers;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hevlar.springdatanestedentitydemo.models.Father;
 import com.hevlar.springdatanestedentitydemo.models.Son;
@@ -13,8 +14,9 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -56,7 +58,25 @@ class FatherControllerTest {
                 .andReturn();
         String getResultJson = getResult.getResponse().getContentAsString();
         Father gotFather = objectMapper.readValue(getResultJson, Father.class);
-        assertThat(gotFather.getSonList().size(), is(2));
+        assertThat(gotFather.getSonList().size(), is(0));
+    }
+
+    @Test
+    void create_willOverflow(){
+        /**
+         * However, even if we set the relationship on both sides,
+         * we still get error as the objectMapper will recursively map the
+         * father and son relationship indefinitely.
+         * Plus, it is not intuitive to put the father field in the son, when
+         * we already put the sons field in the father's json.
+         */
+        Son son1 = Son.builder().name("son 1").build();
+        Son son2 = Son.builder().name("son 2").build();
+        Father father = Father.builder().name("father").sonList(List.of(son1, son2)).build();
+        son1.setFather(father);
+        son2.setFather(father);
+
+        assertThrows(JsonMappingException.class, () -> objectMapper.writeValueAsString(father));
     }
 
 }
